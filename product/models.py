@@ -4,19 +4,19 @@ from django.contrib.auth.models import User
 class Profile(models.Model):
     username = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
 
-    def __srt__(self):
+    def __str__(self):
         return self.username
 
 class Category(models.Model):
     category = models.CharField(max_length=50, unique=True, verbose_name='Категория')
 
-    def __srt__(self):
+    def __str__(self):
         return self.category
 
 class Tags(models.Model):
     tags = models.CharField(max_length=50, verbose_name='теги')
 
-    def __srt__(self):
+    def __str__(self):
         return self.tags
 
 class Product(models.Model):
@@ -26,7 +26,7 @@ class Product(models.Model):
     price = models.PositiveBigIntegerField(verbose_name='цена')
     description = models.CharField(max_length=500, verbose_name='описание')
 
-    def __srt__(self):
+    def __str__(self):
         return self.title
     
 
