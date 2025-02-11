@@ -1,0 +1,304 @@
+{% comment %}!DOCTYPE html>
+<html lang="ru">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CRUD + WebSocket Уведомления</title>
+  
+  <!-- Подключаем Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .container {
+      max-width: 600px;
+      margin-top: 20px;
+    }
+    .notification {
+      padding: 10px;
+      border-left: 5px solid #007bff;
+      background: #e9f2ff;
+      margin-bottom: 10px;
+      border-radius: 5px;
+    }
+    .fade-out {
+      animation: fadeOut 2s forwards;
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2 class="text-center my-3">Создание Товара</h2>
+
+    <!-- Форма для создания товара -->
+    <form id="productForm" class="card p-3 shadow-sm">
+      <div class="mb-3">
+        <label class="form-label">Название товара:</label>
+        <input type="text" id="title" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Цена:</label>
+        <input type="number" id="price" class="form-control" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Описание:</label>
+        <textarea id="description" class="form-control" required></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Категория:</label>
+        <select id="category" class="form-select" required>
+          <option value="">Загрузка...</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100">Создать Товар</button>
+    </form>
+
+    <!-- Блок уведомлений -->
+    <h4 class="mt-4">Уведомления:</h4>
+    <div id="notifications" class="mt-2"></div>
+    <button id="clearNotifications" class="btn btn-danger btn-sm mt-2">Очистить уведомления</button>
+  </div>
+
+  <!-- Подключаем Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // Подключаем WebSocket
+    const socket = new WebSocket("ws://127.0.0.1:8000/ws/notifications/");
+
+    socket.onopen = () => console.log("✅ WebSocket подключен");
+    socket.onerror = (error) => console.error("❌ WebSocket ошибка:", error);
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      showNotification(data.message);
+    };
+
+    // Функция показа уведомления
+    function showNotification(message) {
+      const notifDiv = document.getElementById("notifications");
+      const alert = document.createElement("div");
+      alert.className = "notification";
+      alert.textContent = message;
+      notifDiv.appendChild(alert);
+      setTimeout(() => alert.classList.add("fade-out"), 3000);
+    }
+
+    function loadCategories() {
+      fetch("/api/categories/")
+        .then(response => response.json())
+        .then(categories => {
+          const categorySelect = document.getElementById("category");
+          categorySelect.innerHTML = "";
+          categories.forEach(category => {
+            const option = document.createElement("option");
+            option.value = category.id;
+            option.textContent = category.category;
+            categorySelect.appendChild(option);
+          });
+        })
+        .catch(() => {
+          showNotification("⚠ Ошибка загрузки категорий");
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", loadCategories);
+
+    document.getElementById("productForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      const title = document.getElementById("title").value;
+      const price = document.getElementById("price").value;
+      const description = document.getElementById("description").value;
+      const category = document.getElementById("category").value;
+
+      fetch("/api/products/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, price, description, category })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById("productForm").reset();
+      })
+      .catch(() => showNotification("❌ Ошибка создания товара"));
+    });
+
+    document.getElementById("clearNotifications").addEventListener("click", () => {
+      document.getElementById("notifications").innerHTML = "";
+    });
+  </script>
+</body>
+</html> {% endcomment %}
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CRUD Товаров с WebSocket</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { padding: 20px; }
+    #notifications p { padding: 10px; border-radius: 5px; background: #f9f9f9; border-left: 5px solid #007bff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mb-4">CRUD Товаров с WebSocket</h1>
+
+    <!-- Форма создания/редактирования товара -->
+    <form id="productForm" class="mb-4">
+      <input type="hidden" id="productId">
+      <div class="mb-3">
+        <label for="title" class="form-label">Название товара</label>
+        <input type="text" id="title" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="form-label">Описание</label>
+        <textarea id="description" class="form-control" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="price" class="form-label">Цена</label>
+        <input type="number" id="price" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="category" class="form-label">Категория</label>
+        <select id="category" class="form-select" required></select>
+      </div>
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </form>
+
+    <!-- Список товаров -->
+    <h2>Список товаров</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Описание</th>
+          <th>Цена</th>
+          <th>Категория</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="productList"></tbody>
+    </table>
+
+    <!-- Уведомления -->
+    <h2>Уведомления:</h2>
+    <div id="notifications"></div>
+  </div>
+
+  <script>
+    const socket = new WebSocket("ws://127.0.0.1:8000/ws/notifications/");
+
+    socket.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      const notifDiv = document.getElementById("notifications");
+      const p = document.createElement("p");
+      p.textContent = data.message;
+      notifDiv.appendChild(p);
+    };
+
+    // Загрузка категорий
+    function loadCategories() {
+      fetch("/api/categories/")
+        .then(res => res.json())
+        .then(categories => {
+          const categorySelect = document.getElementById("category");
+          categorySelect.innerHTML = categories.map(cat => `<option value="${cat.id}">${cat.category}</option>`).join("");
+        })
+        .catch(err => console.error("Ошибка загрузки категорий:", err));
+    }
+
+    // Загрузка списка товаров
+    function loadProducts() {
+      fetch("/api/products/")
+        .then(res => res.json())
+        .then(products => {
+          const productList = document.getElementById("productList");
+          productList.innerHTML = products.map(prod => `
+            <tr>
+              <td>${prod.id}</td>
+              <td>${prod.title}</td>
+              <td>${prod.description}</td>
+              <td>${prod.price} ₽</td>
+              <td>${prod.category.category}</td>
+              <td>
+                <button class="btn btn-warning btn-sm" onclick="editProduct(${prod.id}, '${prod.title}', '${prod.description}', ${prod.price}, ${prod.category.id})">Редактировать</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProduct(${prod.id})">Удалить</button>
+              </td>
+            </tr>
+          `).join("");
+        })
+        .catch(err => console.error("Ошибка загрузки товаров:", err));
+    }
+
+    // Обработчик формы (создание/редактирование)
+    document.getElementById("productForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      const productId = document.getElementById("productId").value;
+      const productData = {
+        title: document.getElementById("title").value,
+        description: document.getElementById("description").value,
+        price: parseFloat(document.getElementById("price").value),
+        category: parseInt(document.getElementById("category").value)
+      };
+
+      const url = productId ? `/api/products/${productId}/` : "/api/products/";
+      const method = productId ? "PUT" : "POST";
+
+      fetch(url, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(productData)
+      })
+      .then(res => res.json())
+      .then(() => {
+        loadProducts();
+        document.getElementById("productForm").reset();
+        document.getElementById("productId").value = "";
+      })
+      .catch(err => console.error("Ошибка сохранения товара:", err));
+    });
+
+    // Редактирование товара
+    function editProduct(id, title, description, price, categoryId) {
+      document.getElementById("productId").value = id;
+      document.getElementById("title").value = title;
+      document.getElementById("description").value = description;
+      document.getElementById("price").value = price;
+      document.getElementById("category").value = categoryId;
+    }
+
+    // Удаление товара
+    function deleteProduct(id) {
+      if (confirm("Удалить этот товар?")) {
+        fetch(`/api/products/${id}/`, { method: "DELETE" })
+        .then(() => loadProducts())
+        .catch(err => console.error("Ошибка удаления товара:", err));
+      }
+    }
+
+    // Загрузка данных при загрузке страницы
+    document.addEventListener("DOMContentLoaded", function() {
+      loadCategories();
+      loadProducts();
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
